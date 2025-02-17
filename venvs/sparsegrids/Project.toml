@@ -1,0 +1,10 @@
+[deps]
+CpuId = "adafc99b-e345-5852-983c-f28acb93d879"
+Dynare = "5203de40-99df-439e-afbc-014de65cb9ef"
+FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
+PATHSolver = "f5f7c340-0bb3-5c69-969a-41884d311d1b"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
+Tasmanian = "1e81e918-d094-11e8-0e93-1dd8855012cf"
+Tasmanian_jll = "5b6edb9a-6f5c-5561-95ad-cece0030cdd0"

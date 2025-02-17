@@ -1,0 +1,6 @@
+[submodule "Dynare.jl"]
+	path = Dynare.jl
+	url = ./Dynare.jl
+[submodule "Tasmanian.jl"]
+	path = Tasmanian.jl
+	url = ./Tasmanian.jl
