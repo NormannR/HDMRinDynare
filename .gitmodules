@@ -1,6 +1,8 @@
 [submodule "Dynare.jl"]
 	path = Dynare.jl
 	url = ./Dynare.jl
+	ignore = dirty
 [submodule "Tasmanian.jl"]
 	path = Tasmanian.jl
 	url = ./Tasmanian.jl
+	ignore = dirty

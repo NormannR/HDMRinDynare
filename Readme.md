@@ -24,5 +24,5 @@ N.B.: For the commands above to work, you may need to amend the `Tasmanian.jl` a
 **Running the examples**
 ```julia
 ; cd /files/normann/Dynare.jl/test/models/global
-context = @dynare "irbc" "-DN=2" "-DMETHODS=\"NewtonRaphson()\"";
+context = @dynare "irbc_small" "-DN=2" "-DMETHODS=\"NewtonRaphson()\"";
 ```
