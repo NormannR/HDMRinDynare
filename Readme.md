@@ -17,12 +17,16 @@ git checkout sparsegrids
 ] activate /files/normann/venvs/sparsegrids
 ] develop /files/normann/Tasmanian.jl
 ] develop /files/normann/Dynare.jl
-using Dynare
+using Revise, Dynare
 ```
 N.B.: For the commands above to work, you may need to amend the `Tasmanian.jl` and `Dynare.jl` lines in the `files/normann/venvs/sparsegrids/Manifest.toml` file, which might be set to suit my desktop configuration.
 
 **Running the examples**
 ```julia
-; cd /files/normann/Dynare.jl/test/models/global
-context = @dynare "irbc_small" "-DN=2" "-DMETHODS=\"NewtonRaphson()\"";
+; cd /files/normann
+context = @dynare "irbc_small" "stoponerror";
 ```
+
+**Get the results**
+
+Take a peek at `Tests.jl`
