@@ -1,8 +1,11 @@
 [submodule "Dynare.jl"]
 	path = Dynare.jl
-	url = ./Dynare.jl
+	url = https://github.com/NormannR/Dynare.jl.git
+	branch = sparsegrids
 	ignore = dirty
+
 [submodule "Tasmanian.jl"]
 	path = Tasmanian.jl
-	url = ./Tasmanian.jl
+	url = https://github.com/NormannR/Tasmanian.jl.git
+	branch = v8
 	ignore = dirty
