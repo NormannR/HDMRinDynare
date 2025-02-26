@@ -8,7 +8,7 @@ using Statistics
 # RBC Model
 context = dynare("rbc.mod", "stoponerror");
 # %%
-(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=7);
+(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3, iterRefStart=1, maxRef=3);
 # %%
 α     = 1/3;
 β     = 0.99;
@@ -46,7 +46,6 @@ k_approx = [pol([K, Z])[i_k] for Z in Z_vals, K in K_vals]
 p1 = plot(K_vals, c_theoretical[50, :], label="Theoretical", title="Consumption Policy")
 plot!(K_vals, c_approx[50, :], label="Approximated", linestyle=:dash)
 ylabel!(L"C_t \mid Z_t = Z")
-
 # Plot Capital Policy Function
 p2 = plot(K_vals, k_theoretical[50, :], label="Theoretical", title="Capital Policy")
 plot!(K_vals, k_approx[50, :], label="Approximated", linestyle=:dash)
@@ -63,49 +62,59 @@ p2 = heatmap(K_vals, Z_vals, k_residuals', xlabel=L"K_{t-1}", ylabel=L"Z_t", tit
 plot(p1, p2, layout=(1, 2))
 # %%
 # IRBC model
-context = dynare("irbc_small", "stoponerror");
+# It's better to initialize the context variable out of a loop
+context = dynare("irbc_small", "-DN=2","stoponerror");
 # %%
 # Reproduce Figure 8 in "USING ADAPTIVE SPARSE GRIDS TO SOLVE HIGH-DIMENSIONAL
 # DYNAMIC MODELS", ECTA 2017, LHS panel
-results_lhs = Vector{Any}()
-errors_lhs =  Vector{Any}()
-for l in [3,5,7,9]
+nb_points = Vector{Any}()
+errors = Vector{Any}()
+for l in [3,5,7]
    println(l)
-   SG_grid, sgws = sparsegridapproximation(scaleCorrExclude=["lambda"], gridDepth=l)
-   errors = simulation_approximation_error!(context=context,grid=SG_grid,sgws=sgws)
-   push!(results_lhs, (l, SG_grid, sgws))  # Store (refinement level, grid, workspace)
-   push!(errors_lhs, (l, errors))
+   SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=l, maxRef=0, tol_ti=1e-7, ftol=1e-8, maxiter=400)
+   errorMat = simulation_approximation_error!(context=context,grid=SG_grid,sgws=sgws)
+   push!(nb_points, getNumPoints(SG_grid))
+   push!(errors, errorMat)
 end
 # %%
-T = 11000
-burnin = 1000
-nb_points = [getNumPoints(result[2]) for result in results_lhs]
-mean_abs_error = [mean(abs.(error[2][:,burnin+1:end])) for error in errors_lhs]
-max_error = [maximum(abs.(error[2][:,burnin+1:end])) for error in errors_lhs]
-p1 = plot(nb_points, max_error, label="Max. Error", xaxis=:log10, yaxis=:log10)
-plot!(nb_points, mean_abs_error, label="Avg. Error", xaxis=:log10, yaxis=:log10)
-xlabel!("# Points")
-ylabel!("Error")
+# Check Euler Equations residuals only!
+avg_errors = [ mean(abs.(sim[1:end-1, 1000:end,:])) for sim in errors]
+q_errors = [ quantile(abs.(vec(sim[1:end-1, 1000:end,:])), 0.999) for sim in errors]
+# %%
+nb_points
+# %%
+log10.(avg_errors)
+# %%
+log10.(q_errors)
 # %%
 # Reproduce Figure 8 in "USING ADAPTIVE SPARSE GRIDS TO SOLVE HIGH-DIMENSIONAL
 # DYNAMIC MODELS", ECTA 2017, RHS panel
-results_rhs = Vector{Any}()
-errors_rhs =  Vector{Any}()
-N_vec = [2,10,25,50]
-for N in N_vec
+errors =  Vector{Any}()
+nb_points = Vector{Any}()
+avg_time = Vector{Any}()
+for N in [1,2,4,8]
    println(N)
    context = dynare("irbc_small", "-DN=$N", "stoponerror");
-   SG_grid, sgws = sparsegridapproximation(scaleCorrExclude=["lambda"], gridDepth=3)
-   errors = simulation_approximation_error!(context=context,grid=SG_grid,sgws=sgws)
-   push!(results_rhs, (2*N, SG_grid, sgws))  # Store (refinement level, grid, workspace)
-   push!(errors_rhs, (2*N, errors))
+   SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=3, maxRef=0, tol_ti=1e-7, ftol=1e-8, maxiter=50)
+   errorMat = simulation_approximation_error!(context=context,grid=SG_grid,sgws=sgws)
+   results = context.results.model_results[1].sparsegrids
+   push!(nb_points, getNumPoints(SG_grid))
+   push!(errors, errorMat)
+   push!(avg_time, results.average_iteration_time)
 end
 # %%
-mean_abs_error = [mean(abs.(error[2][:,burnin+1:end])) for error in errors_lhs]
-max_error = [maximum(abs.(error[2][:,burnin+1:end])) for error in errors_lhs]
-p2 = plot(2*N_vec, max_error, label="Max. Error", xaxis=:log10, yaxis=:log10)
-plot!(2*N_vec, mean_abs_error, label="Avg. Error", xaxis=:log10, yaxis=:log10)
-xlabel!("# Dimensions")
-ylabel!("Error")
+# Check Euler Equations residuals only!
+avg_errors = [ mean(abs.(sim[1:end-1, 1000:end,:])) for sim in errors]
+q_errors = [ quantile(abs.(vec(sim[1:end-1, 1000:end,:])), 0.999) for sim in errors]
 # %%
-plot(p1, p2, layout=(1, 2))
+nb_points
+# %%
+log10.(avg_errors)
+# %%
+log10.(q_errors)
+# %%
+# 1) Graph of the number of needed iterations to reach a tol_ti in function of the
+# dimension
+# 2) Graph of average iteration time for a single thread w.r.t # Dimensions
+# 3) N=2, single thread, compute the number of needed iterations: compare first-order linear guess vs the full-zero policy guess
+# DDSG: show the time spent is higher, but allows to reach higher dimensions than ASG or SG

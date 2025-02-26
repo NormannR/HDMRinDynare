@@ -34,7 +34,11 @@ b_eis = 1;
 var k_@{j} a_@{j};
   varexo e_@{j};
   parameters gamma_@{j} t_@{j};
-  gamma_@{j} = a_eis + (@{j} - 1)*(b_eis - a_eis)/(@{N}-1);
+  @#if (N>1)
+    gamma_@{j} = a_eis + (@{j} - 1)*(b_eis - a_eis)/(@{N}-1);
+  @#else
+    gamma_@{j} = a_eis;
+  @#endif
   //pareto
   //t_@{j} = (A - delta)^(1/gamma_@{j});
   t_@{j} = A^(1/gamma_@{j});
