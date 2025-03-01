@@ -1,6 +1,6 @@
 # %%
 import Pkg; Pkg.activate("./venvs/sparsegrids")
-using Revise, Dynare
+using Dynare
 using Tasmanian
 using Plots, LaTeXStrings
 using Statistics
@@ -8,7 +8,7 @@ using Statistics
 # RBC Model
 context = dynare("rbc.mod", "stoponerror");
 # %%
-(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3, iterRefStart=1, maxRef=3);
+(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0);
 # %%
 α     = 1/3;
 β     = 0.99;
@@ -19,10 +19,11 @@ ss_k  = ss_l*(β*α)^(1/(1-α));
 ss_y  = ss_k^α*ss_l^(1-α);
 ss_c  = ss_y-ss_k;
 ss_rk = α*ss_y/ss_k;
-theta = (1-α)*(1-ss_l)*ss_y/(ss_l*ss_c);
+θ = (1-α)*(1-ss_l)*ss_y/(ss_l*ss_c);
 # %%
-c_pol(K,Z) = (1-α*β)*exp(Z)*K^α*ss_l^(1-α);
-k_pol(K,Z) = α*β*exp(Z)*K^α*ss_l^(1-α);
+c_pol(K,Z) = (1-α*β)*exp(Z)*K^α*ss_l^(1-α)
+k_pol(K,Z) = α*β*exp(Z)*K^α*ss_l^(1-α)
+y_pol(K,Z) = c_pol(K,Z)+k_pol(K,Z)
 # %%
 Z_vals = range(-2*σ/sqrt(1-ρ^2), 2*σ/sqrt(1-ρ^2), length=100)
 K_vals = range(ss_k * 0.1, ss_k * 1.9, length=100) 
@@ -61,6 +62,24 @@ p1 = heatmap(K_vals, Z_vals, c_residuals', xlabel=L"K_{t-1}", ylabel=L"Z_t", tit
 p2 = heatmap(K_vals, Z_vals, k_residuals', xlabel=L"K_{t-1}", ylabel=L"Z_t", title="Capital Residuals")
 plot(p1, p2, layout=(1, 2))
 # %%
+# Test of the user-provided initial policy guess
+initialPolGuess = UserPolicyGuess(
+    function (x)
+        Z = x[1]
+        K = x[2]
+        return [
+            c_pol(K,Z),
+            k_pol(K,Z),
+            y_pol(K,Z),
+            α*y_pol(K,Z)/K
+        ]
+    end,
+    ["z", "k"],
+    ["c","k","y","rk"]
+)
+# %%
+(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0,initialPolGuess=initialPolGuess,show_trace=false);
+# %%
 # IRBC model
 # It's better to initialize the context variable out of a loop
 context = dynare("irbc_small", "-DN=2","stoponerror");
@@ -92,10 +111,10 @@ log10.(q_errors)
 errors =  Vector{Any}()
 nb_points = Vector{Any}()
 avg_time = Vector{Any}()
-for N in [1,2,4,8]
+for N in [2,4,8]
    println(N)
    context = dynare("irbc_small", "-DN=$N", "stoponerror");
-   SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=3, maxRef=0, tol_ti=1e-7, ftol=1e-8, maxiter=50)
+   SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=3, maxRef=0, tol_ti=1e-7, ftol=1e-8, maxiter=100)
    errorMat = simulation_approximation_error!(context=context,grid=SG_grid,sgws=sgws)
    results = context.results.model_results[1].sparsegrids
    push!(nb_points, getNumPoints(SG_grid))

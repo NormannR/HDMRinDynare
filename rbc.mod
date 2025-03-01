@@ -17,15 +17,15 @@ ss_rk   = alpha*ss_y/ss_k;
 theta   = (1-alpha)*(1-ss_l)*ss_y/(ss_l*ss_c);
 
 model; 
- z   = rho*z(-1)+e;
- 1/c = 1/c(+1)*beta*rk(+1);
- y   = exp(z)*k(-1)^alpha*ss_l^(1-alpha);
- rk  = alpha*y/k(-1);
- y   = c+k;
+  z   = rho*z(-1)+sig*e;
+  1/c = beta*rk(+1)/c(+1);
+  y   = exp(z)*k(-1)^alpha*ss_l^(1-alpha);
+  rk  = alpha*y/k(-1);
+  y   = c+k;
 end;
 
 shocks;
- var e; stderr sig;
+  var e; stderr 1;
 end;
 
 initval;
