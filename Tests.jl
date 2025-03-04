@@ -1,5 +1,6 @@
 # %%
 import Pkg; Pkg.activate("./venvs/sparsegrids")
+# using Revise, Dynare
 using Dynare
 using Tasmanian
 using Plots, LaTeXStrings
@@ -8,7 +9,7 @@ using Statistics
 # RBC Model
 context = dynare("rbc.mod", "stoponerror");
 # %%
-(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0);
+(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0, polUpdateWeight=1.);
 # %%
 α     = 1/3;
 β     = 0.99;
@@ -78,7 +79,22 @@ initialPolGuess = UserPolicyGuess(
     ["c","k","y","rk"]
 )
 # %%
-(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0,initialPolGuess=initialPolGuess,show_trace=false);
+initialPolGuess = UserPolicyGuess(
+    function (x)
+        Z = x[1]
+        K = x[2]
+        return [
+            0.15,
+            0.05,
+            0.20,
+            1.
+        ]
+    end,
+    ["z", "k"],
+    ["c","k","y","rk"]
+)
+# %%
+(SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0,initialPolGuess=initialPolGuess,show_trace=false,polUpdateWeight=1.);
 # %%
 # IRBC model
 # It's better to initialize the context variable out of a loop
@@ -90,7 +106,7 @@ nb_points = Vector{Any}()
 errors = Vector{Any}()
 for l in [3,5,7]
    println(l)
-   SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=l, maxRef=0, tol_ti=1e-7, ftol=1e-8, maxiter=400)
+   SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=l, maxRef=0, tol_ti=1e-7, ftol=1e-8, maxiter=400, polUpdateWeight=1)
    errorMat = simulation_approximation_error!(context=context,grid=SG_grid,sgws=sgws)
    push!(nb_points, getNumPoints(SG_grid))
    push!(errors, errorMat)
@@ -106,15 +122,17 @@ log10.(avg_errors)
 # %%
 log10.(q_errors)
 # %%
-# Reproduce Figure 8 in "USING ADAPTIVE SPARSE GRIDS TO SOLVE HIGH-DIMENSIONAL
-# DYNAMIC MODELS", ECTA 2017, RHS panel
+# - Reproduce Figure 8 in "USING ADAPTIVE SPARSE GRIDS TO SOLVE HIGH-DIMENSIONAL
+#   DYNAMIC MODELS", ECTA 2017, RHS panel
+# - Count the number of iterations necessary to reach a time-iteration step
+#   lower than 1e-4 with a native initial guess for policy functions
 errors =  Vector{Any}()
 nb_points = Vector{Any}()
 avg_time = Vector{Any}()
 for N in [2,4,8]
    println(N)
    context = dynare("irbc_small", "-DN=$N", "stoponerror");
-   SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=3, maxRef=0, tol_ti=1e-7, ftol=1e-8, maxiter=100)
+   SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=3, maxRef=0, tol_ti=1e-7, ftol=1e-8, maxiter=100, polUpdateWeight=1  )
    errorMat = simulation_approximation_error!(context=context,grid=SG_grid,sgws=sgws)
    results = context.results.model_results[1].sparsegrids
    push!(nb_points, getNumPoints(SG_grid))
@@ -131,6 +149,37 @@ nb_points
 log10.(avg_errors)
 # %%
 log10.(q_errors)
+# %%
+# Count the number of iterations necessary to reach a time-iteration step lower
+# than 1e-4 with a Dynare-provided first-order initial guess for policy
+# functions
+iteration_numbers =  Vector{Any}()
+for N in [2,4,8]
+    println(N)
+    context = dynare("irbc_small", "-DN=$N", "stoponerror");
+    SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], gridDepth=3, maxRef=0, tol_ti=1e-4, ftol=1e-8, polUpdateWeight=1)
+    results = context.results.model_results[1].sparsegrids
+    push!(iteration_numbers, results.iteration_number)
+end
+# %%
+# Count the number of iterations necessary to reach a time-iteration step lower
+# than 1e-4 with a native initial guess for policy functions
+iteration_numbers =  Vector{Any}()
+for N in [2,4,8]
+    println(N)
+    context = dynare("irbc_small", "-DN=$N", "stoponerror");
+    initialPolGuess = UserPolicyGuess(
+        x -> ones(N+1),
+        vcat(["k_$i" for i=1:N], ["a_$i" for i=1:N]),
+        vcat(["lambda"],["k_$i" for i=1:N])
+    )
+    SG_grid, sgws = sparsegridapproximation(context=context, scaleCorrExclude=["lambda"], gridDepth=3, maxRef=0, tol_ti=1e-4, ftol=1e-8,
+    initialPolGuess=initialPolGuess, polUpdateWeight=1)
+    results = context.results.model_results[1].sparsegrids
+    push!(iteration_numbers, results.iteration_number)
+end
+# %%
+iteration_numbers
 # %%
 # 1) Graph of the number of needed iterations to reach a tol_ti in function of the
 # dimension
