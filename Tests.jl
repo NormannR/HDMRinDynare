@@ -8,6 +8,7 @@ using Statistics
 # %%
 # RBC Model
 context = dynare("rbc.mod", "stoponerror");
+# context = dynare("log_rbc.mod", "stoponerror");
 # %%
 (SG_grid, sgws) = sparsegridapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0, polUpdateWeight=1.);
 # %%
@@ -26,13 +27,47 @@ c_pol(K,Z) = (1-α*β)*exp(Z)*K^α*ss_l^(1-α)
 k_pol(K,Z) = α*β*exp(Z)*K^α*ss_l^(1-α)
 y_pol(K,Z) = c_pol(K,Z)+k_pol(K,Z)
 # %%
+initialPolGuess = UserPolicyGuess(
+    function (x)
+        Z = x[1]
+        K = x[2]
+        return [
+            0.15,
+            0.05,
+            0.20,
+            1.
+        ]
+    end,
+    ["z", "k"],
+    ["c","k","y","rk"]
+)
+# initialPolGuess = Dynare.UserPolicyGuess(
+#     function (x)
+#         Z = x[1]
+#         K = x[2]
+#         return [
+#             c_pol(K,Z),
+#             k_pol(K,Z),
+#             y_pol(K,Z),
+#             α*y_pol(K,Z)/K
+#         ]
+#     end,
+#     ["z", "k"],
+#     ["c","k","y","rk"]
+# )
+(DDSG_grid_1, ddsgws_1) = Dynare.DDSGapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0, polUpdateWeight=0.1, initialPolGuess=initialPolGuess, surplThreshold=0., k_max=1);
+# %%
+(DDSG_grid_2, ddsgws_2) = Dynare.DDSGapproximation(tol_ti=1e-6,gridDepth=3,maxRef=0, polUpdateWeight=1., k_max=2);
+# %%
 Z_vals = range(-2*σ/sqrt(1-ρ^2), 2*σ/sqrt(1-ρ^2), length=100)
 K_vals = range(ss_k * 0.1, ss_k * 1.9, length=100) 
 # %%
 c_theoretical = [c_pol(K, Z) for Z in Z_vals, K in K_vals]
 k_theoretical = [k_pol(K, Z) for Z in Z_vals, K in K_vals]
 # %%
-pol = x->evaluate(SG_grid, x)
+pol_sg = x->evaluate(SG_grid, x)
+pol_ddsg_1 = x->Dynare.interpolate(DDSG_grid_1, x)
+pol_ddsg_2 = x->Dynare.interpolate(DDSG_grid_2, x)
 # %%
 # Declaration order in MATLAB
 i_c = context.symboltable["c"].orderintype
@@ -41,24 +76,33 @@ i_k = context.symboltable["k"].orderintype
 i_c = findall(i_c .== context.models[1].i_dyn)[1]
 i_k = findall(i_k .== context.models[1].i_dyn)[1]
 # %%
-c_approx = [pol([K, Z])[i_c] for Z in Z_vals, K in K_vals]
-k_approx = [pol([K, Z])[i_k] for Z in Z_vals, K in K_vals]
+c_sg = [pol_sg([K, Z])[i_c] for Z in Z_vals, K in K_vals]
+k_sg = [pol_sg([K, Z])[i_k] for Z in Z_vals, K in K_vals]
+c_ddsg_1 = [pol_ddsg_1([K, Z])[i_c] for Z in Z_vals, K in K_vals]
+k_ddsg_1 = [pol_ddsg_1([K, Z])[i_k] for Z in Z_vals, K in K_vals]
+c_ddsg_2 = [pol_ddsg_2([K, Z])[i_c] for Z in Z_vals, K in K_vals]
+k_ddsg_2 = [pol_ddsg_2([K, Z])[i_k] for Z in Z_vals, K in K_vals]
 # %%
 # Plot Consumption Policy Function for a mid-range value of Z
 p1 = plot(K_vals, c_theoretical[50, :], label="Theoretical", title="Consumption Policy")
-plot!(K_vals, c_approx[50, :], label="Approximated", linestyle=:dash)
+plot!(K_vals, c_sg[50, :], label="SG", linestyle=:dash)
+plot!(K_vals, c_ddsg_1[50, :], label="DDSG (K = 1)", linestyle=:dash)
+# plot!(K_vals, c_ddsg_2[50, :], label="DDSG (K = 2)", linestyle=:dash)
 ylabel!(L"C_t \mid Z_t = Z")
 # Plot Capital Policy Function
 p2 = plot(K_vals, k_theoretical[50, :], label="Theoretical", title="Capital Policy")
-plot!(K_vals, k_approx[50, :], label="Approximated", linestyle=:dash)
+plot!(K_vals, k_sg[50, :], label="SG", linestyle=:dash)
+plot!(K_vals, k_ddsg_1[50, :], label="DDSG (K=1)", linestyle=:dash)
+# plot!(K_vals, k_ddsg_2[50, :], label="DDSG (K=2)", linestyle=:dash)
 ylabel!(L"K_t \mid Z_t = Z")
-
 plot(p1, p2, layout=(1, 2))
 xlabel!(L"K_{t-1}")
 # %%
+savefig("rbc_comparison.pdf")
+# %%
 # Plot residuals as heatmaps
-c_residuals = abs.(c_theoretical .- c_approx)
-k_residuals = abs.(k_theoretical .- k_approx)
+c_residuals = abs.(c_theoretical .- c_sg)
+k_residuals = abs.(k_theoretical .- k_sg)
 p1 = heatmap(K_vals, Z_vals, c_residuals', xlabel=L"K_{t-1}", ylabel=L"Z_t", title="Consumption Residuals")
 p2 = heatmap(K_vals, Z_vals, k_residuals', xlabel=L"K_{t-1}", ylabel=L"Z_t", title="Capital Residuals")
 plot(p1, p2, layout=(1, 2))
@@ -126,9 +170,9 @@ log10.(q_errors)
 #   DYNAMIC MODELS", ECTA 2017, RHS panel
 # - Count the number of iterations necessary to reach a time-iteration step
 #   lower than 1e-4 with a native initial guess for policy functions
-errors =  Vector{Any}()
-nb_points = Vector{Any}()
-avg_time = Vector{Any}()
+errors =  Vector{Float64}()
+nb_points = Vector{Int}()
+avg_time = Vector{Float64}()
 for N in [2,4,8]
    println(N)
    context = dynare("irbc_small", "-DN=$N", "stoponerror");
@@ -153,7 +197,7 @@ log10.(q_errors)
 # Count the number of iterations necessary to reach a time-iteration step lower
 # than 1e-4 with a Dynare-provided first-order initial guess for policy
 # functions
-iteration_numbers =  Vector{Any}()
+iteration_numbers =  Vector{Int}()
 for N in [2,4,8]
     println(N)
     context = dynare("irbc_small", "-DN=$N", "stoponerror");
@@ -164,7 +208,7 @@ end
 # %%
 # Count the number of iterations necessary to reach a time-iteration step lower
 # than 1e-4 with a native initial guess for policy functions
-iteration_numbers =  Vector{Any}()
+iteration_numbers =  Vector{Int}()
 for N in [2,4,8]
     println(N)
     context = dynare("irbc_small", "-DN=$N", "stoponerror");
@@ -295,8 +339,63 @@ xlabel!("Number of Grid Points")
 # %%
 plot(lhs, rhs, layout=(1, 2), link=:y)
 # %%
-# 1) Graph of the number of needed iterations to reach a tol_ti in function of the
-# dimension
-# 2) Graph of average iteration time for a single thread w.r.t # Dimensions
-# 3) N=2, single thread, compute the number of needed iterations: compare first-order linear guess vs the full-zero policy guess
-# DDSG: show the time spent is higher, but allows to reach higher dimensions than ASG or SG
+# DDSG RESULTS
+context = dynare("irbc_small", "-DN=2","stoponerror");
+# %%
+# Count the number of iterations necessary to reach a time-iteration step lower
+# than 1e-4 with a Dynare-provided first-order initial guess for policy
+# functions
+iteration_numbers =  Vector{Int}()
+nb_points = Vector{Int}()
+for N in [2,4,8]
+    println(N)
+    context = dynare("irbc_small", "-DN=$N", "stoponerror");
+    DDSG_grid, sgws = DDSGapproximation(context=context, scaleCorrExclude=["lambda"], gridDepth=3, maxRef=0, tol_ti=1e-4, ftol=1e-8, polUpdateWeight=1, k_max=1)
+    results = context.results.model_results[1].sparsegrids
+    push!(iteration_numbers, results.iteration_number)
+    push!(nb_points, Dynare.countPoints(DDSG_grid))
+end
+# %%
+# Count the number of iterations necessary to reach a time-iteration step lower
+# than 1e-4 with a native initial guess for policy functions
+iteration_numbers =  Vector{Int}()
+nb_points = Vector{Int}()
+for N in [2,4,8]
+    println(N)
+    context = dynare("irbc_small", "-DN=$N", "stoponerror");
+    initialPolGuess = UserPolicyGuess(
+        x -> ones(N+1),
+        vcat(["k_$i" for i=1:N], ["a_$i" for i=1:N]),
+        vcat(["lambda"],["k_$i" for i=1:N])
+    )
+    DDSG_grid, sgws = DDSGapproximation(context=context, scaleCorrExclude=["lambda"], gridDepth=3, maxRef=0, tol_ti=1e-4, ftol=1e-8,
+    initialPolGuess=initialPolGuess, polUpdateWeight=1, k_max=1)
+    results = context.results.model_results[1].sparsegrids
+    push!(iteration_numbers, results.iteration_number)
+    push!(nb_points, Dynare.countPoints(DDSG_grid))
+end
+# %%
+# Compute simulation errors for the DDSG model with various dimension numbers
+errors =  Vector{Matrix{Float64}}()
+nb_points = Vector{Int}()
+avg_time = Vector{Float64}()
+for N in [2,4,8,25,50]
+   println(N)
+   context = dynare("irbc_small", "-DN=$N", "stoponerror");
+   DDSG_grid, sgws = DDSGapproximation(context=context, scaleCorrExclude=["lambda"], surplThreshold=0., gridDepth=3, maxRef=0, tol_ti=1e-7, ftol=1e-8, polUpdateWeight=1  )
+   errorMat = simulation_approximation_error!(context=context,grid=DDSG_grid,sgws=sgws)
+   results = context.results.model_results[1].sparsegrids
+   push!(nb_points, Dynare.countPoints(DDSG_grid))
+   push!(errors, errorMat)
+   push!(avg_time, results.average_iteration_time)
+end
+# %%
+# Check Euler Equations residuals only!
+avg_errors = [ mean(abs.(sim[1:end-1, 1000:end,:])) for sim in errors]
+q_errors = [ quantile(abs.(vec(sim[1:end-1, 1000:end,:])), 0.999) for sim in errors]
+# %%
+nb_points
+# %%
+log10.(avg_errors)
+# %%
+log10.(q_errors)
