@@ -32,3 +32,4 @@ Pkg.instantiate()
     - `SparsegridsWs` instance
     - `Context` instance
 - [ ] Allow user-defined time-iteration trajectories for `SGapproximation`. An example of such a trajectory is 20 iterations with `l=3`, 10 with `l=4`, 1 with `l=5`.
+- [ ] Parallelize `simulation_approximation_error`
