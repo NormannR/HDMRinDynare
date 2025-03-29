@@ -33,12 +33,6 @@ avg_errors
 # %%
 q_errors
 # %%
-N = 4
-println(2*N)
-context = dynare("irbc_small", "-DN=$N", "stoponerror");
-sg_options = SGOptions(scaleCorrExclude=["lambda"], gridDepth=3, tol_ti=1e-7, ftol=1e-8, maxiter=100, polUpdateWeight=1.)
-@profview SG_grid, sgws = SGapproximation(sg_options; context=context)
-# %%
 # Table 2
 nb_points = Vector{Int}()
 avg_errors = Vector{Float64}()

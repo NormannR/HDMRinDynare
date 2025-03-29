@@ -117,6 +117,5 @@ plot!(xscale=:log10, yscale=:log10, minorgrid=true)
 xlabel!("Number of Grid Points")
 # %%
 plot(lhs, rhs, layout=(1, 2), link=:y)
-
 # %%
 savefig("analytical_ddsg.pdf")
