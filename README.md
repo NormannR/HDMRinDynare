@@ -17,12 +17,42 @@ It provides Julia code to reproduce the figures and tables from the paper, using
 ├── Manifest.toml          # Julia Manifest.toml file
 ```
 
+## 📈 Replication
+
+This repository reproduces all figures and tables from the paper *"Scalable Global Methods for Dynare"*. Below is a list of the replication scripts and their corresponding outputs:
+
+- **`AnalyticalRBC.jl`**
+  - Compares analytical solution with SG and DDSG approximations on the standard RBC model.
+
+- **`AnalyticalDD.jl`**
+  - Reproduces **Figure 6**
+  - Benchmarks SG and DDSG on the high-dimensional function \( \left(\sum_i \sin(x_i)\right)^c \).
+
+- **`IRBC_SG.jl`**
+  - Reproduces **Tables 1–3**
+  - Evaluates sparse grid performance on the IRBC model: error metrics, scalability, and iteration behavior.
+
+- **`IRBC_DD.jl`**
+  - Reproduces **Tables 4–5**
+  - Benchmarks DDSG on the IRBC model and compares different initialization strategies.
+
+All results are computed from scratch using the `.mod` files and the provided code.
+
 ## 🛠 Setup
 
+To replicate the results, clone the repository and navigate to its location. Julia v1.11 or more recent is necessary for the code to run smoothly. Launch Julia in a terminal and run:
 ```julia
-import Pkg
-Pkg.activate(".")
-Pkg.instantiate()
+julia>import Pkg
+julia>Pkg.activate(".")
+julia>Pkg.instantiate()
+```
+This setup step only needs to be done once. You can then run any replication script using:
+```julia
+julia>include("filename.jl")
+```
+or directly from a terminal:
+```
+$ julia filename.jl
 ```
 
 ## ✅ To-Do List
