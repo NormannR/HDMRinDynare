@@ -36,6 +36,12 @@ This repository reproduces all figures and tables from the paper *"Scalable Glob
   - Reproduces **Tables 4–5**
   - Benchmarks DDSG on the IRBC model and compares different initialization strategies.
 
+- **`IRBC_SO_COMPARISON.jl`** and **so_ee_err.m**
+  - Compare the Euler equation errors (average and 99.9% quantile) of the second-order-perturbation solution and the sparse-grid solution using simulation.
+  - Uses model files `irbc_small_inc`, `irbc_small_so.mod` and `irbc_small_gl.mod`.
+  - `IRBC_SO_COMPARISON.jl` compute the Euler equation errors (average and 99.9% quantile) of the sparse-grid solution using simulation. Importantly, it also saves the interpolation weights and nodes in `quadrature.mat`. The provided `quadrature.mat` file is for `N=2` and depth level 3. Note that if you change the number of dimensions of the IRBC model (`N` in `irbc_small_inc`) or the depth level of the sparse-grid solution (`l` in `IRBC_SO_COMPARISON.jl`), you must execute `IRBC_SO_COMPARISON.jl` first to get proper results in `so_ee_err.m`. 
+  - `so_ee_err.m` compute the Euler equation errors (average and 99.9% quantile) of the second-order-perturbation solution using simulation. Importantly, it relies on the MATLAB/Octave version of Dynare (v6.4). 
+
 All results are computed from scratch using the `.mod` files and the provided code.
 
 ## 🛠 Setup

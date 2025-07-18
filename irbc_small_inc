@@ -82,8 +82,3 @@ shocks;
     var e_@{j}; stderr 1;
   @#endfor
 end;
-
-@#for j in 1:N
-  limits!("k_@{j}", min = 0.8, max = 1.2);
-  limits!("a_@{j}", min = -0.8*sigE/(1 - rho), max = 0.8*sigE/(1 - rho));
-@#endfor
