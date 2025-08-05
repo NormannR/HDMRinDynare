@@ -6,22 +6,26 @@ using Plots, LaTeXStrings
 # RBC Model
 context = dynare("rbc.mod", "stoponerror");
 # %%
+params = context.work.params;
+symbol_table = context.symboltable;
+# %%
 # --- Parameters ---
-const α = 1 / 3
-const β = 0.99
-const ρ = 0.95
-const σ = 0.01
-const ss_l = 1 / 3
-const ss_k = ss_l * (β * α)^(1 / (1 - α))
-
+const α = params[symbol_table["alpha"].orderintype]
+const β = params[symbol_table["beta"].orderintype]
+const ρ = params[symbol_table["rho"].orderintype]
+const σ = params[symbol_table["sig"].orderintype]
+const ss_l = params[symbol_table["ss_l"].orderintype]
+const ss_k = params[symbol_table["ss_k"].orderintype]
+# %%
 const GRID_SIZE = 100
-const Z_SLICE_IDX = 50
-
-# --- Policy Functions ---
+const Z_SLICE_IDX = 10
+# %%
+# --- True Policy Functions ---
 c_pol(K, Z) = (1 - α * β) * exp(Z) * K^α * ss_l^(1 - α)
 k_pol(K, Z) = α * β * exp(Z) * K^α * ss_l^(1 - α)
 y_pol(K, Z) = c_pol(K, Z) + k_pol(K, Z)
-
+rk(K,Z) = α*y_pol(K, Z)/K
+# %%
 # --- Initial Policy Guess ---
 initialPolGuess = UserPolicyGuess(
     function (x)
@@ -31,13 +35,13 @@ initialPolGuess = UserPolicyGuess(
             c_pol(K,Z),
             k_pol(K,Z),
             y_pol(K,Z),
-            α*y_pol(K,Z)/K
+            rk(K,Z)
         ]
     end,
     ["z", "k"],
     ["c","k","y","rk"]
 )
-
+# %%
 # --- Evaluate Policy on Grid ---
 function evaluate_policy(pol, idx, Z_vals, K_vals)
     return [pol([K, Z])[idx] for Z in Z_vals, K in K_vals]
@@ -56,7 +60,7 @@ context = dynare("rbc.mod", "stoponerror")
 
 sg_options = SGOptions(tol_ti = 1e-6, gridDepth = 3, maxRef = 1, polUpdateWeight = 1.0,
                         maxIterEarlyStopping = 10, initialPolGuess = initialPolGuess)
-ddsg_options_1 = DDSGOptions(tol_ti = 1e-6, gridDepth = 3, polUpdateWeight = 0.1, initialPolGuess = initialPolGuess)
+ddsg_options_1 = DDSGOptions(tol_ti = 1e-6, gridDepth = 3, polUpdateWeight = 0.1, k_max = 1, initialPolGuess = initialPolGuess)
 ddsg_options_2 = DDSGOptions(tol_ti = 1e-6, gridDepth = 3, polUpdateWeight = 1.0, k_max = 2, initialPolGuess = initialPolGuess)
 
 (SG_grid, _) = SGapproximation(sg_options)
@@ -84,7 +88,7 @@ c_ddsg_2  = evaluate_policy(pol_ddsg_2, i_c, Z_vals, K_vals)
 k_sg      = evaluate_policy(pol_sg,     i_k, Z_vals, K_vals)
 k_ddsg_1  = evaluate_policy(pol_ddsg_1, i_k, Z_vals, K_vals)
 k_ddsg_2  = evaluate_policy(pol_ddsg_2, i_k, Z_vals, K_vals)
-
+# %%
 p1 = plot_policies(K_vals, c_theoretical, c_sg, c_ddsg_1, c_ddsg_2, "Consumption")
 ylabel!(L"C_t \mid Z_t = Z")
 
@@ -93,4 +97,5 @@ ylabel!(L"K_t \mid Z_t = Z")
 
 plot(p1, p2, layout = (1, 2))
 xlabel!(L"K_{t-1}")
+# %%
 savefig("rbc_comparison.pdf")

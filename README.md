@@ -42,6 +42,12 @@ This repository reproduces all figures and tables from the paper *"Scalable Glob
   - `IRBC_SO_COMPARISON.jl` compute the Euler equation errors (average and 99.9% quantile) of the sparse-grid solution using simulation. Importantly, it also saves the interpolation weights and nodes in `quadrature.mat`. The provided `quadrature.mat` file is for `N=2` and depth level 3. Note that if you change the number of dimensions of the IRBC model (`N` in `irbc_small_inc`) or the depth level of the sparse-grid solution (`l` in `IRBC_SO_COMPARISON.jl`), you must execute `IRBC_SO_COMPARISON.jl` first to get proper results in `so_ee_err.m`. 
   - `so_ee_err.m` compute the Euler equation errors (average and 99.9% quantile) of the second-order-perturbation solution using simulation. Importantly, it relies on the MATLAB/Octave version of Dynare (v6.4). 
 
+- **`RBC.jl`** and **rbc_pol.m**
+  - Compare the Euler equation errors (average and 99.9% quantile) of the second-order-perturbation solution and the sparse-grid solution.
+  - Uses model files `rbc_inc.mod`, `rbc_so.mod` and `rbc_gl.mod`.
+  - `RBC.jl` compute the Euler equation errors (average and 99.9% quantile) of the sparse-grid solution (i) on the state space using low-discrepancy sequences and (ii) sequentially using simulation. You must execute `rbc_pol.m` first.
+  - `rbc_pol.m` computes the first-order and second-order perturbation solutions using Dynare and modifies the policy functions to take $(k_{t-1},z_t)$ as input (as in Schmitt-Grohé and Uribe (2004) JEDC) instead of $(k_{t-1},z_{t-1},e_t)$. The results are stored in `rbc_pol.mat`.
+
 All results are computed from scratch using the `.mod` files and the provided code.
 
 ## 🛠 Setup
