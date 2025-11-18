@@ -64,7 +64,7 @@ julia>include("filename.jl")
 ```
 or directly from a terminal:
 ```
-$ julia filename.jl
+$ julia --project=. filename.jl
 ```
 
 ## ✅ To-Do List
